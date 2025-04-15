@@ -1,130 +1,69 @@
--- Lưu các service để tránh gọi GetService nhiều lần
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local rEvents = ReplicatedStorage.rEvents
+-- Function chính chứa toàn bộ auto farm
+local function startAutoFarm()
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local RunService = game:GetService("RunService")
+    local Workspace = game:GetService("Workspace")
+    local Players = game:GetService("Players")
+    local rEvents = ReplicatedStorage.rEvents
 
--- Lưu sẵn các remote event để tránh truy cập lặp lại
-local orbEvent = rEvents.orbEvent
-local rebirthEvent = rEvents.rebirthEvent
-local raceEvent = rEvents.raceEvent
-local finishPart = Workspace.finishPart
+    local OrbArgs = {
+        ["Red"] = {[1] = "collectOrb", [2] = "Red Orb", [3] = "City"},
+        ["Yellow"] = {[1] = "collectOrb", [2] = "Yellow Orb", [3] = "City"},
+        ["Blue"] = {[1] = "collectOrb", [2] = "Blue Orb", [3] = "City"},
+        ["Orange"] = {[1] = "collectOrb", [2] = "Orange Orb", [3] = "City"},
+        ["Gems"] = {[1] = "collectOrb", [2] = "Gem", [3] = "City"}
+    }
 
--- Tạo sẵn các arguments để tránh tạo mới trong vòng lặp
-local RedOrbArgs = {
-    [1] = "collectOrb",
-    [2] = "Red Orb",
-    [3] = "City"
-}
+    local RebirthArgs = {[1] = "rebirthRequest"}
+    local RaceArgs = {[1] = "joinRace"}
 
-local YellowOrbArgs = {
-    [1] = "collectOrb",
-    [2] = "Yellow Orb",
-    [3] = "City"
-}
-
-local BlueOrbArgs = {
-    [1] = "collectOrb",
-    [2] = "Blue Orb",
-    [3] = "City"
-}
-
-local OrangeOrbArgs = {
-    [1] = "collectOrb",
-    [2] = "Orange Orb",
-    [3] = "City"
-}
-
-local GemsFarmArgs = {
-    [1] = "collectOrb",
-    [2] = "Gem",
-    [3] = "City"
-}
-
-local RebirthArgs = {
-    [1] = "rebirthRequest"
-}
-
-local RaceArgs = {
-    [1] = "joinRace"
-}
-
--- Function để chạm vào finishPart
-local function touchFinishPart()
-    if finishPart then
-        local player = game.Players.LocalPlayer
-        local character = player.Character
-        if character then
-            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            if humanoidRootPart then
-                firetouchinterest(humanoidRootPart, finishPart, 0)
-                task.wait(0.1)
-                firetouchinterest(humanoidRootPart, finishPart, 1)
+    local function createOrbCollector(orbType)
+        coroutine.wrap(function()
+            while true do
+                rEvents.orbEvent:FireServer(unpack(OrbArgs[orbType]))
+                RunService.Heartbeat:Wait()
             end
-        end
+        end)()
     end
+
+    coroutine.wrap(function()
+        while true do
+            for _, v in pairs(Workspace:GetDescendants()) do
+                if v.Name == "finishPart" then
+                    local character = Players.LocalPlayer.Character
+                    if character and character:FindFirstChild("HumanoidRootPart") then
+                        firetouchinterest(character.HumanoidRootPart, v, 0)
+                        task.wait(0.1)
+                        firetouchinterest(character.HumanoidRootPart, v, 1)
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+    end)()
+
+    createOrbCollector("Red")
+    createOrbCollector("Yellow")
+    createOrbCollector("Blue")
+    createOrbCollector("Orange")
+    createOrbCollector("Gems")
+
+    coroutine.wrap(function()
+        while true do
+            rEvents.rebirthEvent:FireServer(unpack(RebirthArgs))
+            RunService.Heartbeat:Wait()
+        end
+    end)()
+
+    coroutine.wrap(function()
+        while true do
+            rEvents.raceEvent:FireServer(unpack(RaceArgs))
+            RunService.Heartbeat:Wait()
+        end
+    end)()
 end
 
--- Thu thập Red Orb
-coroutine.wrap(function()
-    while true do
-        orbEvent:FireServer(unpack(RedOrbArgs))
-        RunService.Heartbeat:Wait()
-    end
-end)()
-
--- Thu thập Yellow Orb
-coroutine.wrap(function()
-    while true do
-        orbEvent:FireServer(unpack(YellowOrbArgs))
-        RunService.Heartbeat:Wait()
-    end
-end)()
-
--- Thu thập Blue Orb
-coroutine.wrap(function()
-    while true do
-        orbEvent:FireServer(unpack(BlueOrbArgs))
-        RunService.Heartbeat:Wait()
-    end
-end)()
-
--- Thu thập Orange Orb
-coroutine.wrap(function()
-    while true do
-        orbEvent:FireServer(unpack(OrangeOrbArgs))
-        RunService.Heartbeat:Wait()
-    end
-end)()
-
--- Thu thập Gem
-coroutine.wrap(function()
-    while true do
-        orbEvent:FireServer(unpack(GemsFarmArgs))
-        RunService.Heartbeat:Wait()
-    end
-end)()
-
--- Thực hiện Rebirth
-coroutine.wrap(function()
-    while true do
-        rebirthEvent:FireServer(unpack(RebirthArgs))
-        RunService.Heartbeat:Wait()
-    end
-end)()
-
--- Tham gia Race
-coroutine.wrap(function()
-    while true do
-        raceEvent:FireServer(unpack(RaceArgs))
-        RunService.Heartbeat:Wait()
-    end
-end)()
-
--- Chạm finishPart
-coroutine.wrap(function()
-    while true do
-        touchFinishPart()
-        task.wait(0.2)
-    end
-end)()
+while true do
+    startAutoFarm()
+    task.wait(5)
+end
