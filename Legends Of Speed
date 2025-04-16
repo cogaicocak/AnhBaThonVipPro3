@@ -1,65 +1,16 @@
 -- Services
+local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TeleportService = game:GetService("TeleportService")
 local StarterGui = game:GetService("StarterGui")
-
--- Kiểm tra executor và thiết lập queue_on_teleport
-local function getExecutor()
-    if syn then 
-        return "Synapse X", syn.queue_on_teleport
-    elseif KRNL_LOADED then
-        return "KRNL", queue_on_teleport
-    elseif fluxus then
-        return "Fluxus", fluxus.queue_on_teleport
-    elseif Delta then
-        return "Delta", queue_on_teleport
-    else
-        return "Unsupported", nil
-    end
-end
-
-local execName, queueFunc = getExecutor()
-
--- Thông báo
-local function notify(text)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = execName,
-        Text = text,
-        Duration = 3
-    })
-end
-
--- Kiểm tra executor hỗ trợ
-if not queueFunc then
-    notify("Executor không được hỗ trợ!\nChỉ hỗ trợ: Synapse X, KRNL, Fluxus, Delta")
-    return
-end
 
 -- Remote Events
 local rEvents = ReplicatedStorage.rEvents
 local orbEvent = rEvents.orbEvent
 local rebirthEvent = rEvents.rebirthEvent
-
--- GUI Setup
-local ScreenGui = Instance.new("ScreenGui")
-if syn and syn.protect_gui then
-    syn.protect_gui(ScreenGui)
-end
-ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
--- GUI Elements
-local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local OrbFarmToggle = Instance.new("TextButton")
-local AutoFinishToggle = Instance.new("TextButton")
-local RebirthToggle = Instance.new("TextButton")
-local AutoRejoinToggle = Instance.new("TextButton")
-local CloseButton = Instance.new("TextButton")
 
 -- Variables
 local OrbArgs = {
@@ -72,199 +23,345 @@ local OrbArgs = {
 
 local RebirthArgs = {[1] = "rebirthRequest"}
 local Toggles = {
-    OrbFarm = false,
-    AutoFinish = false,
-    Rebirth = false,
-    AutoRejoin = false
+    ["Orb Farm"] = false,
+    ["Auto Finish"] = false,
+    ["Auto Rebirth"] = false,
+    ["Auto Rejoin"] = false
 }
 
 -- GUI Setup
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.8, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 200, 0, 220)
-MainFrame.Active = true
-MainFrame.Draggable = true
-
-Title.Name = "Title"
-Title.Parent = MainFrame
-Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Title.BorderSizePixel = 0
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Font = Enum.Font.SourceSansBold
-Title.Text = "Farm Menu"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
-
-OrbFarmToggle.Name = "OrbFarmToggle"
-OrbFarmToggle.Parent = MainFrame
-OrbFarmToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-OrbFarmToggle.BorderSizePixel = 0
-OrbFarmToggle.Position = UDim2.new(0.1, 0, 0.2, 0)
-OrbFarmToggle.Size = UDim2.new(0.8, 0, 0, 30)
-OrbFarmToggle.Font = Enum.Font.SourceSans
-OrbFarmToggle.Text = "Orb Farm: OFF"
-OrbFarmToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-OrbFarmToggle.TextSize = 14
-
-AutoFinishToggle.Name = "AutoFinishToggle"
-AutoFinishToggle.Parent = MainFrame
-AutoFinishToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-AutoFinishToggle.BorderSizePixel = 0
-AutoFinishToggle.Position = UDim2.new(0.1, 0, 0.37, 0)
-AutoFinishToggle.Size = UDim2.new(0.8, 0, 0, 30)
-AutoFinishToggle.Font = Enum.Font.SourceSans
-AutoFinishToggle.Text = "Auto Finish: OFF"
-AutoFinishToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoFinishToggle.TextSize = 14
-
-RebirthToggle.Name = "RebirthToggle"
-RebirthToggle.Parent = MainFrame
-RebirthToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-RebirthToggle.BorderSizePixel = 0
-RebirthToggle.Position = UDim2.new(0.1, 0, 0.54, 0)
-RebirthToggle.Size = UDim2.new(0.8, 0, 0, 30)
-RebirthToggle.Font = Enum.Font.SourceSans
-RebirthToggle.Text = "Auto Rebirth: OFF"
-RebirthToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-RebirthToggle.TextSize = 14
-
-AutoRejoinToggle.Name = "AutoRejoinToggle"
-AutoRejoinToggle.Parent = MainFrame
-AutoRejoinToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-AutoRejoinToggle.BorderSizePixel = 0
-AutoRejoinToggle.Position = UDim2.new(0.1, 0, 0.71, 0)
-AutoRejoinToggle.Size = UDim2.new(0.8, 0, 0, 30)
-AutoRejoinToggle.Font = Enum.Font.SourceSans
-AutoRejoinToggle.Text = "Auto Rejoin: OFF"
-AutoRejoinToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoRejoinToggle.TextSize = 14
-
-CloseButton.Name = "CloseButton"
-CloseButton.Parent = MainFrame
-CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-CloseButton.BorderSizePixel = 0
-CloseButton.Position = UDim2.new(0.1, 0, 0.88, 0)
-CloseButton.Size = UDim2.new(0.8, 0, 0, 20)
-CloseButton.Font = Enum.Font.SourceSansBold
-CloseButton.Text = "Close"
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.TextSize = 14
-
--- Function to update button colors
-local function updateButtonColor(button, enabled)
-    button.BackgroundColor3 = enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(50, 50, 50)
-    button.Text = button.Name:gsub("Toggle", "") .. ": " .. (enabled and "ON" or "OFF")
-end
-
--- Button Click Handlers
-OrbFarmToggle.MouseButton1Click:Connect(function()
-    Toggles.OrbFarm = not Toggles.OrbFarm
-    updateButtonColor(OrbFarmToggle, Toggles.OrbFarm)
-    notify("Orb Farm: " .. (Toggles.OrbFarm and "Bật" or "Tắt"))
-end)
-
-AutoFinishToggle.MouseButton1Click:Connect(function()
-    Toggles.AutoFinish = not Toggles.AutoFinish
-    updateButtonColor(AutoFinishToggle, Toggles.AutoFinish)
-    notify("Auto Finish: " .. (Toggles.AutoFinish and "Bật" or "Tắt"))
-end)
-
-RebirthToggle.MouseButton1Click:Connect(function()
-    Toggles.Rebirth = not Toggles.Rebirth
-    updateButtonColor(RebirthToggle, Toggles.Rebirth)
-    notify("Auto Rebirth: " .. (Toggles.Rebirth and "Bật" or "Tắt"))
-end)
-
-AutoRejoinToggle.MouseButton1Click:Connect(function()
-    Toggles.AutoRejoin = not Toggles.AutoRejoin
-    updateButtonColor(AutoRejoinToggle, Toggles.AutoRejoin)
-    notify("Auto Rejoin: " .. (Toggles.AutoRejoin and "Bật" or "Tắt"))
-end)
-
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-    notify("Script đã đóng")
-end)
-
--- Auto Rejoin Function
-local function autoRejoin()
-    local currentPlaceId = game.PlaceId
-    
-    local function rejoinGame()
-        if Toggles.AutoRejoin then
-            notify("Đang chuẩn bị rejoin...")
-            
-            -- Queue script cho lần rejoin
-            local success = pcall(function()
-                local script = [[
-                    repeat task.wait() until game:IsLoaded()
-                    task.wait(1)
-                    loadstring(game:HttpGet('https://raw.githubusercontent.com/cogaicocak/AnhBaThonVipPro3/refs/heads/main/Legends%20Of%20Speed'))()
-                ]]
-                queueFunc(script)
-            end)
-            
-            if success then
-                notify("Script đã sẵn sàng cho rejoin")
-            end
-            
-            -- Rejoin
-            task.wait(0.5)
-            TeleportService:Teleport(currentPlaceId, Players.LocalPlayer)
-        end
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "EnhancedFarmGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+pcall(function() 
+    if syn then
+        syn.protect_gui(ScreenGui)
     end
+    ScreenGui.Parent = game:GetService("CoreGui") 
+end)
+
+-- Tạo hiệu ứng blur cho background
+local blurEffect = Instance.new("BlurEffect")
+blurEffect.Size = 0
+blurEffect.Parent = game:GetService("Lighting")
+
+-- Main Container với Shadow
+local MainContainer = Instance.new("Frame")
+MainContainer.Name = "MainContainer"
+MainContainer.Size = UDim2.new(0, 300, 0, 400)
+MainContainer.Position = UDim2.new(0.5, -150, 0.5, -200)
+MainContainer.BackgroundTransparency = 1
+MainContainer.Parent = ScreenGui
+
+-- Shadow Effect
+local Shadow = Instance.new("ImageLabel")
+Shadow.Name = "Shadow"
+Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+Shadow.BackgroundTransparency = 1
+Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+Shadow.Size = UDim2.new(1, 40, 1, 40)
+Shadow.ZIndex = 1
+Shadow.Image = "rbxassetid://5554236805"
+Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+Shadow.ImageTransparency = 0.6
+Shadow.Parent = MainContainer
+
+-- Main Frame với Gradient
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(1, 0, 1, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.ZIndex = 2
+MainFrame.Parent = MainContainer
+
+-- Gradient Effect
+local UIGradient = Instance.new("UIGradient")
+UIGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 45)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 30))
+})
+UIGradient.Rotation = 45
+UIGradient.Parent = MainFrame
+
+-- Rounded Corners
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+-- Title Container
+local TitleContainer = Instance.new("Frame")
+TitleContainer.Name = "TitleContainer"
+TitleContainer.Size = UDim2.new(1, 0, 0, 50)
+TitleContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+TitleContainer.BorderSizePixel = 0
+TitleContainer.ZIndex = 3
+TitleContainer.Parent = MainFrame
+
+-- Title Rounded Corners
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = TitleContainer
+
+-- Title Text
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.ZIndex = 3
+Title.Font = Enum.Font.GothamBold
+Title.Text = "Legend Speed Farm"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 22
+Title.Parent = TitleContainer
+
+-- Info Container
+local InfoContainer = Instance.new("Frame")
+InfoContainer.Name = "InfoContainer"
+InfoContainer.Size = UDim2.new(0.9, 0, 0, 30)
+InfoContainer.Position = UDim2.new(0.05, 0, 0.85, 0)
+InfoContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+InfoContainer.BackgroundTransparency = 0.5
+InfoContainer.BorderSizePixel = 0
+InfoContainer.ZIndex = 3
+InfoContainer.Parent = MainFrame
+
+local InfoCorner = Instance.new("UICorner")
+InfoCorner.CornerRadius = UDim.new(0, 6)
+InfoCorner.Parent = InfoContainer
+
+local InfoText = Instance.new("TextLabel")
+InfoText.Name = "InfoText"
+InfoText.Size = UDim2.new(1, 0, 1, 0)
+InfoText.BackgroundTransparency = 1
+InfoText.ZIndex = 3
+InfoText.Font = Enum.Font.Gotham
+InfoText.Text = "Made by: AnhBaDepTrai"
+InfoText.TextColor3 = Color3.fromRGB(200, 200, 200)
+InfoText.TextSize = 14
+InfoText.Parent = InfoContainer
+
+-- Create Button Function
+local function createButton(name, position)
+    local Button = Instance.new("Frame")
+    Button.Name = name .. "Button"
+    Button.Size = UDim2.new(0.9, 0, 0, 45)
+    Button.Position = position
+    Button.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    Button.BorderSizePixel = 0
+    Button.ZIndex = 3
+    Button.Parent = MainFrame
     
-    -- Xử lý disconnect
-    game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
-        if child.Name == 'ErrorPrompt' and Toggles.AutoRejoin then
-            notify("Phát hiện disconnect!")
-            task.wait(1)
-            rejoinGame()
-        end
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 8)
+    ButtonCorner.Parent = Button
+    
+    local ButtonLabel = Instance.new("TextLabel")
+    ButtonLabel.Name = "Label"
+    ButtonLabel.Size = UDim2.new(1, 0, 1, 0)
+    ButtonLabel.BackgroundTransparency = 1
+    ButtonLabel.ZIndex = 3
+    ButtonLabel.Font = Enum.Font.GothamSemibold
+    ButtonLabel.Text = name .. ": OFF"
+    ButtonLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ButtonLabel.TextSize = 16
+    ButtonLabel.Parent = Button
+    
+    -- Hover Effect
+    local ButtonHover = Instance.new("Frame")
+    ButtonHover.Name = "Hover"
+    ButtonHover.Size = UDim2.new(1, 0, 1, 0)
+    ButtonHover.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    ButtonHover.BackgroundTransparency = 1
+    ButtonHover.ZIndex = 2
+    ButtonHover.Parent = Button
+    
+    local HoverCorner = Instance.new("UICorner")
+    HoverCorner.CornerRadius = UDim.new(0, 8)
+    HoverCorner.Parent = ButtonHover
+    
+    -- Click Effect
+    local CircleEffect = Instance.new("Frame")
+    CircleEffect.Name = "CircleEffect"
+    CircleEffect.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    CircleEffect.BackgroundTransparency = 0.9
+    CircleEffect.ZIndex = 2
+    CircleEffect.Visible = false
+    CircleEffect.Parent = Button
+    
+    local CircleCorner = Instance.new("UICorner")
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = CircleEffect
+    
+    return Button, ButtonLabel
+end
+
+-- Create Buttons
+local buttons = {
+    {name = "Orb Farm", pos = UDim2.new(0.05, 0, 0.2, 0)},
+    {name = "Auto Finish", pos = UDim2.new(0.05, 0, 0.35, 0)},
+    {name = "Auto Rebirth", pos = UDim2.new(0.05, 0, 0.5, 0)},
+    {name = "Auto Rejoin", pos = UDim2.new(0.05, 0, 0.65, 0)}
+}
+
+-- Notification Function
+local function notify(text)
+    StarterGui:SetCore("SendNotification", {
+        Title = "Legend Speed Farm",
+        Text = text,
+        Duration = 3
+    })
+end
+
+-- Button Animation Function
+local function animateButton(button, enabled)
+    local label = button:FindFirstChild("Label")
+    local hover = button:FindFirstChild("Hover")
+    
+    -- Color Animation
+    local targetColor = enabled and Color3.fromRGB(45, 120, 255) or Color3.fromRGB(35, 35, 50)
+    local colorTween = TweenService:Create(button, TweenInfo.new(0.3), {BackgroundColor3 = targetColor})
+    colorTween:Play()
+    
+    -- Text Update
+    label.Text = button.Name:gsub("Button", "") .. ": " .. (enabled and "ON" or "OFF")
+    
+    -- Notification
+    notify(button.Name:gsub("Button", "") .. ": " .. (enabled and "Bật" or "Tắt"))
+end
+
+-- Click Effect Function
+local function createClickEffect(button, mouseX, mouseY)
+    local circle = button.CircleEffect:Clone()
+    circle.Position = UDim2.new(0, mouseX - button.AbsolutePosition.X, 0, mouseY - button.AbsolutePosition.Y)
+    circle.Size = UDim2.new(0, 0, 0, 0)
+    circle.Visible = true
+    circle.Parent = button
+    
+    local targetSize = UDim2.new(0, button.AbsoluteSize.X * 2, 0, button.AbsoluteSize.X * 2)
+    local sizeTween = TweenService:Create(circle, TweenInfo.new(0.5), {
+        Size = targetSize,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0.5, -button.AbsoluteSize.X, 0.5, -button.AbsoluteSize.X)
+    })
+    sizeTween:Play()
+    
+    sizeTween.Completed:Connect(function()
+        circle:Destroy()
+    end)
+end
+
+-- Create and Setup Buttons
+for _, btnInfo in ipairs(buttons) do
+    local button, label = createButton(btnInfo.name, btnInfo.pos)
+    
+    -- Hover Animation
+    button.MouseEnter:Connect(function()
+        local hoverTween = TweenService:Create(button.Hover, TweenInfo.new(0.3), {BackgroundTransparency = 0.9})
+        hoverTween:Play()
     end)
     
-    -- Xử lý teleport
-    Players.LocalPlayer.OnTeleport:Connect(function(State)
-        if State == Enum.TeleportState.Started then
-            -- Queue script khi bắt đầu teleport
-            pcall(function()
-                local script = [[
-                    repeat task.wait() until game:IsLoaded()
-                    task.wait(1)
-                    loadstring(game:HttpGet('https://raw.githubusercontent.com/cogaicocak/AnhBaThonVipPro3/refs/heads/main/Legends%20Of%20Speed'))()
-                ]]
-                queueFunc(script)
-            end)
+    button.MouseLeave:Connect(function()
+        local hoverTween = TweenService:Create(button.Hover, TweenInfo.new(0.3), {BackgroundTransparency = 1})
+        hoverTween:Play()
+    end)
+    
+    -- Click Animation
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            createClickEffect(button, input.Position.X, input.Position.Y)
+            Toggles[btnInfo.name] = not Toggles[btnInfo.name]
+            animateButton(button, Toggles[btnInfo.name])
         end
     end)
 end
 
--- Initialize Auto Rejoin
-autoRejoin()
+-- Make MainContainer draggable
+local dragging
+local dragInput
+local dragStart
+local startPos
 
+local function update(input)
+    local delta = input.Position - dragStart
+    MainContainer.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+        startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+TitleContainer.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainContainer.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TitleContainer.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- Toggle GUI Visibility
+local function toggleUI()
+    local transparency = MainContainer.BackgroundTransparency == 0 and 1 or 0
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    
+    local uiTween = TweenService:Create(MainContainer, tweenInfo, {BackgroundTransparency = transparency})
+    local blurTween = TweenService:Create(blurEffect, tweenInfo, {Size = transparency == 0 and 10 or 0})
+    
+    uiTween:Play()
+    blurTween:Play()
+    
+    MainContainer.Visible = transparency == 0
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        toggleUI()
+    end
+end)
+
+-- Initial Animation
+MainContainer.BackgroundTransparency = 1
+local initialTween = TweenService:Create(MainContainer, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+    BackgroundTransparency = 0
+})
+initialTween:Play()
+
+-- Farming Functions
 -- Orb Farm Function
-for i = 1, 6 do
-    coroutine.wrap(function()
-        while true do
-            if Toggles.OrbFarm then
-                for _, args in pairs(OrbArgs) do
-                    for _ = 1, 150 do
-                        orbEvent:FireServer(unpack(args))
-                    end
+coroutine.wrap(function()
+    while true do
+        if Toggles["Orb Farm"] then
+            for _, args in pairs(OrbArgs) do
+                for _ = 1, 150 do
+                    orbEvent:FireServer(unpack(args))
                 end
             end
-            RunService.RenderStepped:Wait()
         end
-    end)()
-end
+        RunService.RenderStepped:Wait()
+    end
+end)()
 
 -- Auto Finish Function
 coroutine.wrap(function()
     while true do
-        if Toggles.AutoFinish then
+        if Toggles["Auto Finish"] then
             for _, v in pairs(Workspace:GetDescendants()) do
                 if v.Name == "finishPart" then
                     local character = Players.LocalPlayer.Character
@@ -283,20 +380,27 @@ end)()
 -- Auto Rebirth Function
 coroutine.wrap(function()
     while true do
-        if Toggles.Rebirth then
+        if Toggles["Auto Rebirth"] then
             rebirthEvent:FireServer(unpack(RebirthArgs))
         end
         task.wait(0.01)
     end
 end)()
 
--- Toggle GUI Visibility with Right Control
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if input.KeyCode == Enum.KeyCode.RightControl then
-        MainFrame.Visible = not MainFrame.Visible
-        notify(MainFrame.Visible and "Menu đã hiện" or "Menu đã ẩn")
-    end
-end)
+-- Auto Rejoin Function
+local function autoRejoin()
+    local currentPlaceId = game.PlaceId
+    
+    game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
+        if child.Name == 'ErrorPrompt' and Toggles["Auto Rejoin"] then
+            notify("Phát hiện disconnect!")
+            task.wait(1)
+            game:GetService("TeleportService"):Teleport(currentPlaceId, Players.LocalPlayer)
+        end
+    end)
+end
+
+autoRejoin()
 
 -- Thông báo khởi động
-notify("Script đã được khởi động thành công trên " .. execName)
+notify("Script đã được khởi động thành công!")
