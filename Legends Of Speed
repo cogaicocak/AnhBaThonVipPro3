@@ -7,37 +7,52 @@ local UserInputService = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
 local StarterGui = game:GetService("StarterGui")
 
+-- Kiểm tra executor và thiết lập queue_on_teleport
+local function getExecutor()
+    if syn then 
+        return "Synapse X", syn.queue_on_teleport
+    elseif KRNL_LOADED then
+        return "KRNL", queue_on_teleport
+    elseif fluxus then
+        return "Fluxus", fluxus.queue_on_teleport
+    elseif Delta then
+        return "Delta", queue_on_teleport
+    else
+        return "Unsupported", nil
+    end
+end
+
+local execName, queueFunc = getExecutor()
+
+-- Thông báo
+local function notify(text)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = execName,
+        Text = text,
+        Duration = 3
+    })
+end
+
+-- Kiểm tra executor hỗ trợ
+if not queueFunc then
+    notify("Executor không được hỗ trợ!\nChỉ hỗ trợ: Synapse X, KRNL, Fluxus, Delta")
+    return
+end
+
 -- Remote Events
 local rEvents = ReplicatedStorage.rEvents
 local orbEvent = rEvents.orbEvent
 local rebirthEvent = rEvents.rebirthEvent
 
--- Đảm bảo GUI luôn được tạo
-local function setupGUI()
-    local success, gui = pcall(function()
-        local gui = Instance.new("ScreenGui")
-        gui.Name = math.random() -- Random name để tránh bị phát hiện
-        gui.ResetOnSpawn = false
-        
-        -- Thử các cách khác nhau để parent GUI
-        pcall(function() gui.Parent = game:GetService("CoreGui") end)
-        if not gui.Parent then
-            pcall(function() gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui") end)
-        end
-        
-        return gui
-    end)
-    
-    if success then
-        return gui
-    else
-        -- Nếu không thể tạo GUI, thử cách khác
-        return Players.LocalPlayer:WaitForChild("PlayerGui")
-    end
+-- GUI Setup
+local ScreenGui = Instance.new("ScreenGui")
+if syn and syn.protect_gui then
+    syn.protect_gui(ScreenGui)
 end
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- GUI Elements
-local ScreenGui = setupGUI()
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
 local OrbFarmToggle = Instance.new("TextButton")
@@ -138,17 +153,6 @@ CloseButton.Text = "Close"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.TextSize = 14
 
--- Thông báo đơn giản
-local function notify(text)
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {
-            Title = "Farm Script",
-            Text = text,
-            Duration = 3
-        })
-    end)
-end
-
 -- Function to update button colors
 local function updateButtonColor(button, enabled)
     button.BackgroundColor3 = enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(50, 50, 50)
@@ -191,44 +195,49 @@ local function autoRejoin()
     
     local function rejoinGame()
         if Toggles.AutoRejoin then
-            notify("Đang cố gắng rejoin...")
+            notify("Đang chuẩn bị rejoin...")
             
-            -- Thử rejoin
-            local success, error = pcall(function()
-                -- Lưu script để auto execute
-                pcall(function()
-                    if game:GetService("CoreGui").RobloxPromptGui then
-                        local script = [[
-                            task.wait(1)
-                            loadstring(game:HttpGet('https://raw.githubusercontent.com/cogaicocak/AnhBaThonVipPro3/refs/heads/main/Legends%20Of%20Speed'))()
-                        ]]
-                        
-                        -- Thử tất cả các phương thức có thể
-                        pcall(function()
-                            if queue_on_teleport then
-                                queue_on_teleport(script)
-                            end
-                        end)
-                    end
-                end)
-                
-                TeleportService:Teleport(currentPlaceId, Players.LocalPlayer)
+            -- Queue script cho lần rejoin
+            local success = pcall(function()
+                local script = [[
+                    repeat task.wait() until game:IsLoaded()
+                    task.wait(1)
+                    loadstring(game:HttpGet('https://raw.githubusercontent.com/cogaicocak/AnhBaThonVipPro3/refs/heads/main/Legends%20Of%20Speed'))()
+                ]]
+                queueFunc(script)
             end)
             
-            if not success then
-                notify("Rejoin thất bại, đang thử lại...")
-                task.wait(1)
-                rejoinGame()
+            if success then
+                notify("Script đã sẵn sàng cho rejoin")
             end
+            
+            -- Rejoin
+            task.wait(0.5)
+            TeleportService:Teleport(currentPlaceId, Players.LocalPlayer)
         end
     end
     
-    -- Xử lý các sự kiện disconnect
+    -- Xử lý disconnect
     game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
         if child.Name == 'ErrorPrompt' and Toggles.AutoRejoin then
-            notify("Phát hiện disconnect, đang rejoin...")
+            notify("Phát hiện disconnect!")
             task.wait(1)
             rejoinGame()
+        end
+    end)
+    
+    -- Xử lý teleport
+    Players.LocalPlayer.OnTeleport:Connect(function(State)
+        if State == Enum.TeleportState.Started then
+            -- Queue script khi bắt đầu teleport
+            pcall(function()
+                local script = [[
+                    repeat task.wait() until game:IsLoaded()
+                    task.wait(1)
+                    loadstring(game:HttpGet('https://raw.githubusercontent.com/cogaicocak/AnhBaThonVipPro3/refs/heads/main/Legends%20Of%20Speed'))()
+                ]]
+                queueFunc(script)
+            end)
         end
     end)
 end
@@ -290,4 +299,4 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 -- Thông báo khởi động
-notify("Script đã được khởi động thành công!")
+notify("Script đã được khởi động thành công trên " .. execName)
