@@ -4,21 +4,46 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TeleportService = game:GetService("TeleportService") -- Added for rejoin functionality
+local TeleportService = game:GetService("TeleportService")
+local StarterGui = game:GetService("StarterGui")
 
 -- Remote Events
 local rEvents = ReplicatedStorage.rEvents
 local orbEvent = rEvents.orbEvent
 local rebirthEvent = rEvents.rebirthEvent
 
+-- Đảm bảo GUI luôn được tạo
+local function setupGUI()
+    local success, gui = pcall(function()
+        local gui = Instance.new("ScreenGui")
+        gui.Name = math.random() -- Random name để tránh bị phát hiện
+        gui.ResetOnSpawn = false
+        
+        -- Thử các cách khác nhau để parent GUI
+        pcall(function() gui.Parent = game:GetService("CoreGui") end)
+        if not gui.Parent then
+            pcall(function() gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui") end)
+        end
+        
+        return gui
+    end)
+    
+    if success then
+        return gui
+    else
+        -- Nếu không thể tạo GUI, thử cách khác
+        return Players.LocalPlayer:WaitForChild("PlayerGui")
+    end
+end
+
 -- GUI Elements
-local ScreenGui = Instance.new("ScreenGui")
+local ScreenGui = setupGUI()
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
 local OrbFarmToggle = Instance.new("TextButton")
 local AutoFinishToggle = Instance.new("TextButton")
 local RebirthToggle = Instance.new("TextButton")
-local AutoRejoinToggle = Instance.new("TextButton") -- New button for auto rejoin
+local AutoRejoinToggle = Instance.new("TextButton")
 local CloseButton = Instance.new("TextButton")
 
 -- Variables
@@ -35,19 +60,16 @@ local Toggles = {
     OrbFarm = false,
     AutoFinish = false,
     Rebirth = false,
-    AutoRejoin = false -- New toggle for auto rejoin
+    AutoRejoin = false
 }
 
 -- GUI Setup
-ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 MainFrame.BorderSizePixel = 0
 MainFrame.Position = UDim2.new(0.8, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 200, 0, 220) -- Increased height for new button
+MainFrame.Size = UDim2.new(0, 200, 0, 220)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
@@ -94,7 +116,6 @@ RebirthToggle.Text = "Auto Rebirth: OFF"
 RebirthToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 RebirthToggle.TextSize = 14
 
--- New Auto Rejoin Toggle Button
 AutoRejoinToggle.Name = "AutoRejoinToggle"
 AutoRejoinToggle.Parent = MainFrame
 AutoRejoinToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -117,6 +138,17 @@ CloseButton.Text = "Close"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.TextSize = 14
 
+-- Thông báo đơn giản
+local function notify(text)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "Farm Script",
+            Text = text,
+            Duration = 3
+        })
+    end)
+end
+
 -- Function to update button colors
 local function updateButtonColor(button, enabled)
     button.BackgroundColor3 = enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(50, 50, 50)
@@ -127,56 +159,75 @@ end
 OrbFarmToggle.MouseButton1Click:Connect(function()
     Toggles.OrbFarm = not Toggles.OrbFarm
     updateButtonColor(OrbFarmToggle, Toggles.OrbFarm)
+    notify("Orb Farm: " .. (Toggles.OrbFarm and "Bật" or "Tắt"))
 end)
 
 AutoFinishToggle.MouseButton1Click:Connect(function()
     Toggles.AutoFinish = not Toggles.AutoFinish
     updateButtonColor(AutoFinishToggle, Toggles.AutoFinish)
+    notify("Auto Finish: " .. (Toggles.AutoFinish and "Bật" or "Tắt"))
 end)
 
 RebirthToggle.MouseButton1Click:Connect(function()
     Toggles.Rebirth = not Toggles.Rebirth
     updateButtonColor(RebirthToggle, Toggles.Rebirth)
+    notify("Auto Rebirth: " .. (Toggles.Rebirth and "Bật" or "Tắt"))
 end)
 
 AutoRejoinToggle.MouseButton1Click:Connect(function()
     Toggles.AutoRejoin = not Toggles.AutoRejoin
     updateButtonColor(AutoRejoinToggle, Toggles.AutoRejoin)
+    notify("Auto Rejoin: " .. (Toggles.AutoRejoin and "Bật" or "Tắt"))
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
+    notify("Script đã đóng")
 end)
 
 -- Auto Rejoin Function
 local function autoRejoin()
     local currentPlaceId = game.PlaceId
-    local currentJobId = game.JobId
     
     local function rejoinGame()
         if Toggles.AutoRejoin then
+            notify("Đang cố gắng rejoin...")
+            
+            -- Thử rejoin
             local success, error = pcall(function()
-                TeleportService:TeleportToPlaceInstance(currentPlaceId, currentJobId, Players.LocalPlayer)
+                -- Lưu script để auto execute
+                pcall(function()
+                    if game:GetService("CoreGui").RobloxPromptGui then
+                        local script = [[
+                            task.wait(1)
+                            loadstring(game:HttpGet('https://raw.githubusercontent.com/cogaicocak/AnhBaThonVipPro3/refs/heads/main/Legends%20Of%20Speed'))()
+                        ]]
+                        
+                        -- Thử tất cả các phương thức có thể
+                        pcall(function()
+                            if queue_on_teleport then
+                                queue_on_teleport(script)
+                            end
+                        end)
+                    end
+                end)
+                
+                TeleportService:Teleport(currentPlaceId, Players.LocalPlayer)
             end)
             
             if not success then
-                -- If failed to rejoin the same server, try joining a different server
-                TeleportService:Teleport(currentPlaceId, Players.LocalPlayer)
+                notify("Rejoin thất bại, đang thử lại...")
+                task.wait(1)
+                rejoinGame()
             end
         end
     end
     
-    -- Listen for kick events
-    Players.LocalPlayer.OnTeleport:Connect(function(State)
-        if State == Enum.TeleportState.Failed and Toggles.AutoRejoin then
-            rejoinGame()
-        end
-    end)
-    
-    -- Listen for disconnection
+    -- Xử lý các sự kiện disconnect
     game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
         if child.Name == 'ErrorPrompt' and Toggles.AutoRejoin then
-            task.wait(1) -- Wait a moment before attempting to rejoin
+            notify("Phát hiện disconnect, đang rejoin...")
+            task.wait(1)
             rejoinGame()
         end
     end)
@@ -185,7 +236,6 @@ end
 -- Initialize Auto Rejoin
 autoRejoin()
 
--- Original Features
 -- Orb Farm Function
 for i = 1, 6 do
     coroutine.wrap(function()
@@ -235,5 +285,9 @@ end)()
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.RightControl then
         MainFrame.Visible = not MainFrame.Visible
+        notify(MainFrame.Visible and "Menu đã hiện" or "Menu đã ẩn")
     end
 end)
+
+-- Thông báo khởi động
+notify("Script đã được khởi động thành công!")
