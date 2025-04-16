@@ -1,69 +1,239 @@
--- Function chính chứa toàn bộ auto farm
-local function startAutoFarm()
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local RunService = game:GetService("RunService")
-    local Workspace = game:GetService("Workspace")
-    local Players = game:GetService("Players")
-    local rEvents = ReplicatedStorage.rEvents
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService") -- Added for rejoin functionality
 
-    local OrbArgs = {
-        ["Red"] = {[1] = "collectOrb", [2] = "Red Orb", [3] = "City"},
-        ["Yellow"] = {[1] = "collectOrb", [2] = "Yellow Orb", [3] = "City"},
-        ["Blue"] = {[1] = "collectOrb", [2] = "Blue Orb", [3] = "City"},
-        ["Orange"] = {[1] = "collectOrb", [2] = "Orange Orb", [3] = "City"},
-        ["Gems"] = {[1] = "collectOrb", [2] = "Gem", [3] = "City"}
-    }
+-- Remote Events
+local rEvents = ReplicatedStorage.rEvents
+local orbEvent = rEvents.orbEvent
+local rebirthEvent = rEvents.rebirthEvent
 
-    local RebirthArgs = {[1] = "rebirthRequest"}
-    local RaceArgs = {[1] = "joinRace"}
+-- GUI Elements
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local OrbFarmToggle = Instance.new("TextButton")
+local AutoFinishToggle = Instance.new("TextButton")
+local RebirthToggle = Instance.new("TextButton")
+local AutoRejoinToggle = Instance.new("TextButton") -- New button for auto rejoin
+local CloseButton = Instance.new("TextButton")
 
-    local function createOrbCollector(orbType)
-        coroutine.wrap(function()
-            while true do
-                rEvents.orbEvent:FireServer(unpack(OrbArgs[orbType]))
-                RunService.Heartbeat:Wait()
+-- Variables
+local OrbArgs = {
+    ["Red"] = {[1] = "collectOrb", [2] = "Red Orb", [3] = "City"},
+    ["Yellow"] = {[1] = "collectOrb", [2] = "Yellow Orb", [3] = "City"},
+    ["Blue"] = {[1] = "collectOrb", [2] = "Blue Orb", [3] = "City"},
+    ["Orange"] = {[1] = "collectOrb", [2] = "Orange Orb", [3] = "City"},
+    ["Gems"] = {[1] = "collectOrb", [2] = "Gem", [3] = "City"}
+}
+
+local RebirthArgs = {[1] = "rebirthRequest"}
+local Toggles = {
+    OrbFarm = false,
+    AutoFinish = false,
+    Rebirth = false,
+    AutoRejoin = false -- New toggle for auto rejoin
+}
+
+-- GUI Setup
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.8, 0, 0.3, 0)
+MainFrame.Size = UDim2.new(0, 200, 0, 220) -- Increased height for new button
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+Title.Name = "Title"
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Title.BorderSizePixel = 0
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Font = Enum.Font.SourceSansBold
+Title.Text = "Farm Menu"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+
+OrbFarmToggle.Name = "OrbFarmToggle"
+OrbFarmToggle.Parent = MainFrame
+OrbFarmToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+OrbFarmToggle.BorderSizePixel = 0
+OrbFarmToggle.Position = UDim2.new(0.1, 0, 0.2, 0)
+OrbFarmToggle.Size = UDim2.new(0.8, 0, 0, 30)
+OrbFarmToggle.Font = Enum.Font.SourceSans
+OrbFarmToggle.Text = "Orb Farm: OFF"
+OrbFarmToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+OrbFarmToggle.TextSize = 14
+
+AutoFinishToggle.Name = "AutoFinishToggle"
+AutoFinishToggle.Parent = MainFrame
+AutoFinishToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+AutoFinishToggle.BorderSizePixel = 0
+AutoFinishToggle.Position = UDim2.new(0.1, 0, 0.37, 0)
+AutoFinishToggle.Size = UDim2.new(0.8, 0, 0, 30)
+AutoFinishToggle.Font = Enum.Font.SourceSans
+AutoFinishToggle.Text = "Auto Finish: OFF"
+AutoFinishToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoFinishToggle.TextSize = 14
+
+RebirthToggle.Name = "RebirthToggle"
+RebirthToggle.Parent = MainFrame
+RebirthToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+RebirthToggle.BorderSizePixel = 0
+RebirthToggle.Position = UDim2.new(0.1, 0, 0.54, 0)
+RebirthToggle.Size = UDim2.new(0.8, 0, 0, 30)
+RebirthToggle.Font = Enum.Font.SourceSans
+RebirthToggle.Text = "Auto Rebirth: OFF"
+RebirthToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+RebirthToggle.TextSize = 14
+
+-- New Auto Rejoin Toggle Button
+AutoRejoinToggle.Name = "AutoRejoinToggle"
+AutoRejoinToggle.Parent = MainFrame
+AutoRejoinToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+AutoRejoinToggle.BorderSizePixel = 0
+AutoRejoinToggle.Position = UDim2.new(0.1, 0, 0.71, 0)
+AutoRejoinToggle.Size = UDim2.new(0.8, 0, 0, 30)
+AutoRejoinToggle.Font = Enum.Font.SourceSans
+AutoRejoinToggle.Text = "Auto Rejoin: OFF"
+AutoRejoinToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoRejoinToggle.TextSize = 14
+
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseButton.BorderSizePixel = 0
+CloseButton.Position = UDim2.new(0.1, 0, 0.88, 0)
+CloseButton.Size = UDim2.new(0.8, 0, 0, 20)
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.Text = "Close"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 14
+
+-- Function to update button colors
+local function updateButtonColor(button, enabled)
+    button.BackgroundColor3 = enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(50, 50, 50)
+    button.Text = button.Name:gsub("Toggle", "") .. ": " .. (enabled and "ON" or "OFF")
+end
+
+-- Button Click Handlers
+OrbFarmToggle.MouseButton1Click:Connect(function()
+    Toggles.OrbFarm = not Toggles.OrbFarm
+    updateButtonColor(OrbFarmToggle, Toggles.OrbFarm)
+end)
+
+AutoFinishToggle.MouseButton1Click:Connect(function()
+    Toggles.AutoFinish = not Toggles.AutoFinish
+    updateButtonColor(AutoFinishToggle, Toggles.AutoFinish)
+end)
+
+RebirthToggle.MouseButton1Click:Connect(function()
+    Toggles.Rebirth = not Toggles.Rebirth
+    updateButtonColor(RebirthToggle, Toggles.Rebirth)
+end)
+
+AutoRejoinToggle.MouseButton1Click:Connect(function()
+    Toggles.AutoRejoin = not Toggles.AutoRejoin
+    updateButtonColor(AutoRejoinToggle, Toggles.AutoRejoin)
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- Auto Rejoin Function
+local function autoRejoin()
+    local currentPlaceId = game.PlaceId
+    local currentJobId = game.JobId
+    
+    local function rejoinGame()
+        if Toggles.AutoRejoin then
+            local success, error = pcall(function()
+                TeleportService:TeleportToPlaceInstance(currentPlaceId, currentJobId, Players.LocalPlayer)
+            end)
+            
+            if not success then
+                -- If failed to rejoin the same server, try joining a different server
+                TeleportService:Teleport(currentPlaceId, Players.LocalPlayer)
             end
-        end)()
+        end
     end
+    
+    -- Listen for kick events
+    Players.LocalPlayer.OnTeleport:Connect(function(State)
+        if State == Enum.TeleportState.Failed and Toggles.AutoRejoin then
+            rejoinGame()
+        end
+    end)
+    
+    -- Listen for disconnection
+    game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
+        if child.Name == 'ErrorPrompt' and Toggles.AutoRejoin then
+            task.wait(1) -- Wait a moment before attempting to rejoin
+            rejoinGame()
+        end
+    end)
+end
 
+-- Initialize Auto Rejoin
+autoRejoin()
+
+-- Original Features
+-- Orb Farm Function
+for i = 1, 6 do
     coroutine.wrap(function()
         while true do
+            if Toggles.OrbFarm then
+                for _, args in pairs(OrbArgs) do
+                    for _ = 1, 150 do
+                        orbEvent:FireServer(unpack(args))
+                    end
+                end
+            end
+            RunService.RenderStepped:Wait()
+        end
+    end)()
+end
+
+-- Auto Finish Function
+coroutine.wrap(function()
+    while true do
+        if Toggles.AutoFinish then
             for _, v in pairs(Workspace:GetDescendants()) do
                 if v.Name == "finishPart" then
                     local character = Players.LocalPlayer.Character
                     if character and character:FindFirstChild("HumanoidRootPart") then
                         firetouchinterest(character.HumanoidRootPart, v, 0)
-                        task.wait(0.1)
+                        task.wait(0.05)
                         firetouchinterest(character.HumanoidRootPart, v, 1)
                     end
                 end
             end
-            task.wait(0.5)
         end
-    end)()
+        task.wait(0.1)
+    end
+end)()
 
-    createOrbCollector("Red")
-    createOrbCollector("Yellow")
-    createOrbCollector("Blue")
-    createOrbCollector("Orange")
-    createOrbCollector("Gems")
-
-    coroutine.wrap(function()
-        while true do
-            rEvents.rebirthEvent:FireServer(unpack(RebirthArgs))
-            RunService.Heartbeat:Wait()
+-- Auto Rebirth Function
+coroutine.wrap(function()
+    while true do
+        if Toggles.Rebirth then
+            rebirthEvent:FireServer(unpack(RebirthArgs))
         end
-    end)()
+        task.wait(0.01)
+    end
+end)()
 
-    coroutine.wrap(function()
-        while true do
-            rEvents.raceEvent:FireServer(unpack(RaceArgs))
-            RunService.Heartbeat:Wait()
-        end
-    end)()
-end
-
-while true do
-    startAutoFarm()
-    task.wait(5)
-end
+-- Toggle GUI Visibility with Right Control
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
