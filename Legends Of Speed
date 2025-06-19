@@ -29,7 +29,14 @@ local Toggles = {
     ["Auto Rejoin"] = false
 }
 
--- GUI Setup
+-- Ping Optimization Variables
+local lastOrbTime = 0
+local lastRebirthTime = 0
+local orbCooldown = 0.1 -- Tăng cooldown để giảm spam
+local rebirthCooldown = 1 -- Cooldown cho rebirth
+local batchSize = 50 -- Giảm batch size từ 150 xuống 50
+
+-- GUI Setup (giữ nguyên)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "EnhancedFarmGUI"
 ScreenGui.ResetOnSpawn = false
@@ -112,7 +119,7 @@ Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
 Title.ZIndex = 3
 Title.Font = Enum.Font.GothamBold
-Title.Text = "Legend Speed Farm"
+Title.Text = "Legend Speed Farm (Optimized)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 22
 Title.Parent = TitleContainer
@@ -138,7 +145,7 @@ InfoText.Size = UDim2.new(1, 0, 1, 0)
 InfoText.BackgroundTransparency = 1
 InfoText.ZIndex = 3
 InfoText.Font = Enum.Font.Gotham
-InfoText.Text = "Made by: AnhBaDepTrai"
+InfoText.Text = "Ping Optimized Version"
 InfoText.TextColor3 = Color3.fromRGB(200, 200, 200)
 InfoText.TextSize = 14
 InfoText.Parent = InfoContainer
@@ -343,51 +350,82 @@ local initialTween = TweenService:Create(MainContainer, TweenInfo.new(0.5, Enum.
 })
 initialTween:Play()
 
--- Farming Functions
--- Orb Farm Function
+-- OPTIMIZED FARMING FUNCTIONS
+
+-- Orb Farm Function (Tối ưu hóa ping)
 coroutine.wrap(function()
     while true do
         if Toggles["Orb Farm"] then
-            for _, args in pairs(OrbArgs) do
-                for _ = 1, 150 do
-                    orbEvent:FireServer(unpack(args))
+            local currentTime = tick()
+            if currentTime - lastOrbTime >= orbCooldown then
+                -- Gửi batch nhỏ hơn và có delay
+                for _, args in pairs(OrbArgs) do
+                    for i = 1, batchSize do
+                        orbEvent:FireServer(unpack(args))
+                        if i % 10 == 0 then -- Nghỉ mỗi 10 lần gửi
+                            task.wait(0.001)
+                        end
+                    end
                 end
+                lastOrbTime = currentTime
             end
         end
-        RunService.RenderStepped:Wait()
+        task.wait(orbCooldown) -- Thay vì RunService.RenderStepped:Wait()
     end
 end)()
 
--- Auto Finish Function
+-- Auto Finish Function (Tối ưu hóa)
+local finishParts = {}
+local lastFinishScan = 0
+local finishScanCooldown = 1 -- Scan finish parts mỗi 1 giây
+
 coroutine.wrap(function()
     while true do
         if Toggles["Auto Finish"] then
-            for _, v in pairs(Workspace:GetDescendants()) do
-                if v.Name == "finishPart" then
-                    local character = Players.LocalPlayer.Character
-                    if character and character:FindFirstChild("HumanoidRootPart") then
-                        firetouchinterest(character.HumanoidRootPart, v, 0)
-                        task.wait(0.05)
-                        firetouchinterest(character.HumanoidRootPart, v, 1)
+            local currentTime = tick()
+            
+            -- Chỉ scan finish parts khi cần thiết
+            if currentTime - lastFinishScan >= finishScanCooldown then
+                finishParts = {}
+                for _, v in pairs(Workspace:GetDescendants()) do
+                    if v.Name == "finishPart" then
+                        table.insert(finishParts, v)
+                    end
+                end
+                lastFinishScan = currentTime
+            end
+            
+            -- Touch finish parts đã cache
+            local character = Players.LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                for _, finishPart in pairs(finishParts) do
+                    if finishPart and finishPart.Parent then
+                        firetouchinterest(character.HumanoidRootPart, finishPart, 0)
+                        task.wait(0.01)
+                        firetouchinterest(character.HumanoidRootPart, finishPart, 1)
                     end
                 end
             end
         end
-        task.wait(0.1)
+        task.wait(0.2) -- Tăng delay từ 0.1 lên 0.2
     end
 end)()
 
--- Auto Rebirth Function
+-- Auto Rebirth Function (Tối ưu hóa)
 coroutine.wrap(function()
     while true do
         if Toggles["Auto Rebirth"] then
-            rebirthEvent:FireServer(unpack(RebirthArgs))
+            local currentTime = tick()
+            if currentTime - lastRebirthTime >= rebirthCooldown then
+                rebirthEvent:FireServer(unpack(RebirthArgs))
+                lastRebirthTime = currentTime
+            end
         end
-        task.wait(0.01)
+        task.wait(rebirthCooldown) -- Thay vì 0.01
     end
 end)()
 
--- Auto Rejoin Function
+-- Auto Rejoin Function (giữ nguyên)
 local function autoRejoin()
     local currentPlaceId = game.PlaceId
     
@@ -403,4 +441,13 @@ end
 autoRejoin()
 
 -- Thông báo khởi động
-notify("Script đã được khởi động thành công!")
+notify("Script đã được khởi động thành công với tối ưu hóa ping!")
+
+-- Ping Monitor (tùy chọn)
+coroutine.wrap(function()
+    while true do
+        local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString()
+        -- Có thể hiển thị ping trong GUI nếu cần
+        task.wait(5)
+    end
+end)()
